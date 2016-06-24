@@ -611,7 +611,7 @@ function bindKeyboardHandler(element, i) {
   }
 
   i.event.bind(i.ownerDocument, 'keydown', function (e) {
-    if (e.isDefaultPrevented && e.isDefaultPrevented()) {
+    if ((e.isDefaultPrevented && e.isDefaultPrevented()) || e.defaultPrevented) {
       return;
     }
 
@@ -759,7 +759,7 @@ function bindMouseWheelHandler(element, i) {
   }
 
   function shouldBeConsumedByChild(deltaX, deltaY) {
-    var child = element.querySelector('textarea:hover, .ps-child:hover');
+    var child = element.querySelector('textarea:hover, select[multiple]:hover, .ps-child:hover');
     if (child) {
       if (child.tagName !== 'TEXTAREA' && !window.getComputedStyle(child).overflow.match(/(scroll|auto)/)) {
         return false;
@@ -1450,87 +1450,94 @@ yStartEvent.initEvent('ps-y-reach-start', true, true);
 yEndEvent.initEvent('ps-y-reach-end', true, true);
 
 module.exports = function (element, axis, value) {
-  if (typeof element === 'undefined') {
-    throw 'You must provide an element to the update-scroll function';
-  }
 
-  if (typeof axis === 'undefined') {
-    throw 'You must provide an axis to the update-scroll function';
-  }
-
-  if (typeof value === 'undefined') {
-    throw 'You must provide a value to the update-scroll function';
-  }
-
-  if (axis === 'top' && value <= 0) {
-    element.scrollTop = value = 0; // don't allow negative scroll
-    element.dispatchEvent(yStartEvent);
-  }
-
-  if (axis === 'left' && value <= 0) {
-    element.scrollLeft = value = 0; // don't allow negative scroll
-    element.dispatchEvent(xStartEvent);
-  }
-
-  var i = instances.get(element);
-
-  if (axis === 'top' && value >= i.contentHeight - i.containerHeight) {
-    // don't allow scroll past container
-    value = i.contentHeight - i.containerHeight;
-    if (value - element.scrollTop <= 1) {
-      // mitigates rounding errors on non-subpixel scroll values
-      value = element.scrollTop;
-    } else {
-      element.scrollTop = value;
+  // monkeypatch to sync the scroll event with the Ember run-loop
+  // Ember will be defined in the global scope
+  /*eslint-disable */
+  Ember.run.next(function() {
+    if (typeof element === 'undefined') {
+      throw 'You must provide an element to the update-scroll function';
     }
-    element.dispatchEvent(yEndEvent);
-  }
 
-  if (axis === 'left' && value >= i.contentWidth - i.containerWidth) {
-    // don't allow scroll past container
-    value = i.contentWidth - i.containerWidth;
-    if (value - element.scrollLeft <= 1) {
-      // mitigates rounding errors on non-subpixel scroll values
-      value = element.scrollLeft;
-    } else {
-      element.scrollLeft = value;
+    if (typeof axis === 'undefined') {
+      throw 'You must provide an axis to the update-scroll function';
     }
-    element.dispatchEvent(xEndEvent);
-  }
 
-  if (!lastTop) {
-    lastTop = element.scrollTop;
-  }
+    if (typeof value === 'undefined') {
+      throw 'You must provide a value to the update-scroll function';
+    }
 
-  if (!lastLeft) {
-    lastLeft = element.scrollLeft;
-  }
+    if (axis === 'top' && value <= 0) {
+      element.scrollTop = value = 0; // don't allow negative scroll
+      element.dispatchEvent(yStartEvent);
+    }
 
-  if (axis === 'top' && value < lastTop) {
-    element.dispatchEvent(upEvent);
-  }
+    if (axis === 'left' && value <= 0) {
+      element.scrollLeft = value = 0; // don't allow negative scroll
+      element.dispatchEvent(xStartEvent);
+    }
 
-  if (axis === 'top' && value > lastTop) {
-    element.dispatchEvent(downEvent);
-  }
+    var i = instances.get(element);
 
-  if (axis === 'left' && value < lastLeft) {
-    element.dispatchEvent(leftEvent);
-  }
+    if (axis === 'top' && value >= i.contentHeight - i.containerHeight) {
+      // don't allow scroll past container
+      value = i.contentHeight - i.containerHeight;
+      if (value - element.scrollTop <= 1) {
+        // mitigates rounding errors on non-subpixel scroll values
+        value = element.scrollTop;
+      } else {
+        element.scrollTop = value;
+      }
+      element.dispatchEvent(yEndEvent);
+    }
 
-  if (axis === 'left' && value > lastLeft) {
-    element.dispatchEvent(rightEvent);
-  }
+    if (axis === 'left' && value >= i.contentWidth - i.containerWidth) {
+      // don't allow scroll past container
+      value = i.contentWidth - i.containerWidth;
+      if (value - element.scrollLeft <= 1) {
+        // mitigates rounding errors on non-subpixel scroll values
+        value = element.scrollLeft;
+      } else {
+        element.scrollLeft = value;
+      }
+      element.dispatchEvent(xEndEvent);
+    }
 
-  if (axis === 'top') {
-    element.scrollTop = lastTop = value;
-    element.dispatchEvent(yEvent);
-  }
+    if (!lastTop) {
+      lastTop = element.scrollTop;
+    }
 
-  if (axis === 'left') {
-    element.scrollLeft = lastLeft = value;
-    element.dispatchEvent(xEvent);
-  }
+    if (!lastLeft) {
+      lastLeft = element.scrollLeft;
+    }
+
+    if (axis === 'top' && value < lastTop) {
+      element.dispatchEvent(upEvent);
+    }
+
+    if (axis === 'top' && value > lastTop) {
+      element.dispatchEvent(downEvent);
+    }
+
+    if (axis === 'left' && value < lastLeft) {
+      element.dispatchEvent(leftEvent);
+    }
+
+    if (axis === 'left' && value > lastLeft) {
+      element.dispatchEvent(rightEvent);
+    }
+
+    if (axis === 'top') {
+      element.scrollTop = lastTop = value;
+      element.dispatchEvent(yEvent);
+    }
+
+    if (axis === 'left') {
+      element.scrollLeft = lastLeft = value;
+      element.dispatchEvent(xEvent);
+    }
+  });
+  /*eslint-enable */
 
 };
 
