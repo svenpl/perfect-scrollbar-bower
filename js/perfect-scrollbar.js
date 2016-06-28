@@ -1427,7 +1427,7 @@ module.exports = function (element, axis, value) {
   // monkeypatch to sync the scroll event with the Ember run-loop
   // Ember will be defined in the global scope
   /*eslint-disable */
-  Ember.run.next(function() {
+  Ember.run.join(function() {
     if (typeof element === 'undefined') {
       throw 'You must provide an element to the update-scroll function';
     }
